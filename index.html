@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consultime — Prospecting Engine</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#F5F0E6;font-family:'IBM Plex Sans',sans-serif;color:#1E1A14;min-height:100vh}
+:root{
+  --bg:#F5F0E6;--surface:#FDFAF3;--card:#FFFDF7;
+  --border:#DDD6C4;--bdk:#C4BAA4;
+  --t:#1E1A14;--tm:#4A3F30;--tmt:#8A7A62;--tf:#B5A890;
+  --a:#0047B0;--ab:#EAF0FC;
+  --g:#1A7040;--gb:#E6F4ED;
+  --o:#B85800;--ob:#FEF0E0;
+  --r:#B01C1C;--rb:#FDEAEA;
+  --mono:'IBM Plex Mono',monospace;
+}
+input,select,textarea,button{font-family:'IBM Plex Sans',sans-serif}
+input::placeholder,textarea::placeholder{color:var(--tf)}
+select option{background:var(--surface)}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--bdk)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+#header{background:var(--surface);border-bottom:1px solid var(--border);padding:13px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+#logo{width:36px;height:36px;background:var(--a);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;font-weight:700;color:#fff;flex-shrink:0}
+.title-block{margin-left:14px}
+.title-block .sub{font-family:var(--mono);font-size:9px;color:var(--tmt);letter-spacing:.18em;text-transform:uppercase}
+.title-block .title{font-size:17px;font-weight:700}
+.title-block .title span{font-family:var(--mono);font-size:9px;color:var(--a);font-weight:400;margin-left:6px}
+#header-right{display:flex;gap:10px;align-items:center}
+#ca-badge{font-family:var(--mono);font-size:10px;color:var(--g);background:var(--gb);border:1px solid #1A704044;padding:4px 10px;display:none}
+
+#layout{display:flex;max-width:1240px;margin:0 auto}
+
+/* Sidebar */
+#sidebar{width:288px;flex-shrink:0;padding:20px 16px;border-right:1px solid var(--border);min-height:calc(100vh - 64px);display:flex;flex-direction:column;gap:0}
+.filter-section{margin-bottom:14px}
+.lbl{font-family:var(--mono);font-size:9px;color:var(--tmt);letter-spacing:.14em;text-transform:uppercase;margin-bottom:5px;display:block}
+.field{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--t);padding:9px 11px;font-size:12px;outline:none;cursor:pointer;appearance:none}
+.field::placeholder{color:var(--tf)}
+.field:focus{border-color:var(--a)}
+
+/* Signal chips */
+.signal-chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{padding:5px 10px;font-size:10px;font-family:var(--mono);cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--tmt);letter-spacing:.03em;transition:all .15s;user-select:none}
+.chip:hover{border-color:var(--a);color:var(--a)}
+.chip.active{background:var(--ab);border-color:var(--a);color:var(--a);font-weight:600}
+
+/* Divider */
+.divider{height:1px;background:var(--border);margin:16px 0}
+
+/* Key input */
+.key-wrap{background:var(--ab);border:1px solid #0047B044;padding:10px 12px;margin-bottom:14px}
+.key-wrap .lbl{color:var(--a)}
+.key-input{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--t);padding:7px 10px;font-size:11px;font-family:var(--mono);outline:none;box-sizing:border-box}
+.key-note{font-family:var(--mono);font-size:8px;color:var(--tmt);margin-top:5px;line-height:1.5}
+
+#search-btn{background:var(--a);border:none;color:#fff;padding:12px 20px;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;width:100%;margin-bottom:10px;transition:background .2s}
+#search-btn:disabled{background:var(--bdk);color:var(--tf);cursor:not-allowed}
+#search-btn:not(:disabled):hover{background:#003A9B}
+.btn-secondary{background:var(--surface);border:1px solid var(--bdk);color:var(--tm);padding:8px 12px;font-size:9px;font-family:var(--mono);letter-spacing:.1em;cursor:pointer;text-transform:uppercase;width:100%;margin-bottom:6px;display:none}
+.btn-secondary:hover{background:var(--ab);border-color:var(--a);color:var(--a)}
+
+/* Results */
+#results{flex:1;padding:20px;min-width:0}
+#loading{text-align:center;padding:48px 0;display:none}
+#spinner{display:inline-block;width:26px;height:26px;border:2px solid var(--border);border-top-color:var(--a);border-radius:50%;animation:spin .75s linear infinite;margin-bottom:16px}
+#step-text{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--tm)}
+#error-box{background:var(--rb);border:1px solid #B01C1C44;border-left:3px solid var(--r);padding:14px 18px;color:var(--r);font-family:var(--mono);font-size:11px;margin-bottom:20px;display:none;line-height:1.6}
+#resume-box{background:var(--ab);border:1px solid #0047B033;border-left:3px solid var(--a);padding:12px 18px;margin-bottom:16px;font-size:13px;line-height:1.65;color:var(--tm);display:none}
+.resume-tag{font-family:var(--mono);font-size:9px;color:var(--a);letter-spacing:.14em;text-transform:uppercase;margin-right:10px}
+#stats-bar{display:none;gap:14px;margin-bottom:14px;font-family:var(--mono);font-size:10px;color:var(--tmt);flex-wrap:wrap;align-items:center}
+#sort-bar{display:none;align-items:center;gap:8px;margin-bottom:14px}
+.sort-lbl{font-family:var(--mono);font-size:9px;color:var(--tmt);letter-spacing:.1em}
+.sort-sel{background:var(--surface);border:1px solid var(--border);color:var(--t);padding:5px 8px;font-size:10px;font-family:var(--mono);outline:none;cursor:pointer}
+#leads-list{display:flex;flex-direction:column;gap:10px}
+#empty-state{text-align:center;padding:80px 0;color:var(--tf)}
+.empty-icon{font-size:48px;margin-bottom:14px;opacity:.25}
+.empty-title{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--tmt)}
+.empty-sub{font-family:var(--mono);font-size:9px;color:var(--tf);margin-top:8px}
+
+/* Skeleton */
+.skel{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--border);padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.skel-line{background:var(--border);animation:pulse 1.4s ease infinite;margin-bottom:8px;border-radius:2px}
+
+/* Progress */
+#progress{position:fixed;top:0;left:0;right:0;height:3px;z-index:200}
+#progress-bar{height:100%;background:var(--a);width:0;transition:width .4s ease}
+
+/* Card */
+.card{background:var(--card);border:1px solid var(--border);box-shadow:0 1px 5px rgba(0,0,0,.04);animation:fadeUp .3s ease forwards;opacity:0}
+.card-top{padding:14px 18px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.card-name{font-size:15px;font-weight:700;color:var(--t)}
+.plat-badge{color:#fff;padding:1px 8px;font-size:9px;font-family:var(--mono);letter-spacing:.1em;font-weight:700}
+.prio-badge{font-family:var(--mono);font-size:10px;letter-spacing:.04em}
+.canut-badge{background:#E0F7FA;color:#0E7490;border:1px solid #0E749044;padding:1px 7px;font-size:9px;font-family:var(--mono);font-weight:600}
+.card-meta{display:flex;gap:8px;font-family:var(--mono);font-size:10px;color:var(--tmt);flex-wrap:wrap;margin:5px 0}
+.card-contact{font-family:var(--mono);font-size:11px;color:var(--a);font-weight:600}
+.card-contact-name{font-family:var(--mono);font-size:10px;color:var(--tmt);margin-top:3px}
+.meddic-dots{display:flex;gap:3px}
+.mdot{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:9px;font-family:var(--mono);font-weight:700;cursor:help;border:1px solid var(--border);background:var(--bg);color:var(--tf)}
+.mdot.on{border:none;color:#fff}
+.score-chip{padding:2px 9px;font-size:9px;font-family:var(--mono);letter-spacing:.1em;font-weight:700}
+.reliability-bar{display:flex;gap:2px;margin-top:4px} 
+.rbar-seg{width:8px;height:4px;border-radius:1px}
+
+/* Signal */
+.signal-strip{padding:8px 18px;border-top:1px solid var(--border);display:flex;align-items:flex-start;gap:12px}
+.signal-lbl{font-family:var(--mono);font-size:9px;color:var(--o);letter-spacing:.12em;flex-shrink:0;font-weight:600;padding-top:2px}
+.signal-text{color:var(--tm);flex:1;font-size:12px;line-height:1.5}
+.signal-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+.signal-source{font-family:var(--mono);font-size:9px;color:var(--tf)}
+.signal-bar{display:flex;gap:2px}
+.sbar-seg{width:6px;height:10px}
+
+/* Metrics */
+.metrics-strip{padding:8px 18px;border-top:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap}
+.metric-item{display:flex;flex-direction:column;gap:2px}
+.metric-lbl{font-family:var(--mono);font-size:8px;color:var(--tmt);letter-spacing:.1em;text-transform:uppercase}
+.metric-val{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--t)}
+.metric-val.g{color:var(--g)}
+.metric-val.plain{font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:400;color:var(--tm)}
+
+/* Toggle */
+.toggle-btn{width:100%;background:transparent;border:none;border-top:1px solid var(--border);color:var(--tmt);padding:8px 18px;font-size:10px;font-family:var(--mono);letter-spacing:.08em;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;text-transform:uppercase}
+.toggle-btn:hover{background:var(--bg)}
+.toggle-right{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--tf);font-weight:400}
+
+/* Expand */
+.expand-area{border-top:1px solid var(--border)}
+.tab-bar{display:flex;background:var(--bg);border-bottom:1px solid var(--border);overflow-x:auto}
+.tab-btn{background:transparent;border:none;border-bottom:2px solid transparent;color:var(--tmt);padding:8px 16px;font-size:10px;font-family:var(--mono);letter-spacing:.08em;cursor:pointer;text-transform:uppercase;white-space:nowrap;margin-bottom:-1px}
+.tab-btn.on{border-bottom-color:var(--a);color:var(--a)}
+.tab-content{padding:16px 18px}
+
+/* Radar */
+.meddic-row{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;margin-bottom:6px}
+.meddic-row.pass{background:var(--gb);border:1px solid #1A704044}
+.meddic-row.fail{background:var(--rb);border:1px solid #B01C1C44}
+.mcheck{font-family:var(--mono);font-size:9px;font-weight:700;flex-shrink:0;padding-top:1px}
+.mcheck.pass{color:var(--g)}.mcheck.fail{color:var(--r)}
+.mname{font-family:var(--mono);font-size:10px;font-weight:600;margin-bottom:2px}
+.mname.pass{color:var(--g)}.mname.fail{color:var(--r)}
+.mwhy{font-size:12px;color:var(--tm);line-height:1.5}
+.angle-box{background:var(--ab);border:1px solid #0047B033;border-left:3px solid var(--a);padding:10px 14px;margin:12px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.info-box{background:var(--bg);border:1px solid var(--border);padding:10px 12px}
+.info-val{font-size:12px;color:var(--tm);line-height:1.5}
+.info-val.mono{font-family:var(--mono);font-size:13px;color:var(--t);font-weight:600}
+.q-list{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.q-item{display:flex;gap:10px;padding:8px 12px;background:var(--bg);border:1px solid var(--border)}
+.q-num{font-family:var(--mono);font-size:10px;color:var(--a);font-weight:700;flex-shrink:0}
+.q-text{font-size:12px;color:var(--tm);line-height:1.5}
+
+/* Messages */
+.msg-box{background:var(--bg);border:1px solid var(--border);padding:14px 16px;font-size:13px;line-height:1.8;color:var(--tm);white-space:pre-wrap;margin-bottom:10px}
+.email-objet{background:var(--bg);border:1px solid var(--border);padding:10px 14px;font-size:13px;font-weight:600;color:var(--t);margin-bottom:10px}
+.copy-btn{background:var(--surface);border:1px solid var(--bdk);color:var(--tm);padding:5px 12px;font-size:9px;font-family:var(--mono);letter-spacing:.1em;cursor:pointer;text-transform:uppercase;white-space:nowrap}
+.copy-btn:hover,.copy-btn.ok{background:var(--gb);border-color:var(--g);color:var(--g)}
+
+/* Sequence */
+.seq-step{background:var(--bg);border:1px solid var(--border);padding:10px 14px;margin-bottom:8px}
+.seq-header{display:flex;gap:10px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+.seq-j{font-family:var(--mono);font-size:10px;color:var(--a);font-weight:700;min-width:28px}
+.seq-canal{font-family:var(--mono);font-size:9px;color:var(--tmt);text-transform:uppercase}
+.seq-action{font-family:var(--mono);font-size:9px;color:var(--tf)}
+.seq-objet{font-size:11px;font-weight:600;color:var(--t);margin-bottom:4px}
+.seq-msg{font-size:12px;line-height:1.65;color:var(--tm);white-space:pre-wrap}
+.obj-item{background:var(--bg);border:1px solid var(--border);padding:10px 14px;margin-bottom:6px}
+.obj-q{font-family:var(--mono);font-size:10px;color:var(--o);font-weight:600;margin-bottom:4px}
+.obj-r{font-size:12px;color:var(--tm);line-height:1.5;margin-bottom:6px}
+.obj-ret{font-family:var(--mono);font-size:10px;color:var(--a)}
+.gen-btn{background:var(--a);border:none;color:#fff;padding:10px 20px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.gen-btn:hover{background:#003A9B}
+.gen-loading{display:flex;align-items:center;gap:10px;color:var(--tmt);font-family:var(--mono);font-size:11px}
+.gen-spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--a);border-radius:50%;animation:spin .75s linear infinite}
+
+/* Reliability */
+.rel-badge{font-family:var(--mono);font-size:9px;font-weight:600;padding:2px 7px;border:1px solid}
+.rel-high{color:#1A7040;background:#E6F4ED;border-color:#1A704044}
+.rel-med{color:#B85800;background:#FEF0E0;border-color:#B8580044}
+.rel-low{color:#B01C1C;background:#FDEAEA;border-color:#B01C1C44}
+</style>
+</head>
+<body>
+<div id="progress"><div id="progress-bar"></div></div>
+
+<div id="header">
+  <div style="display:flex;align-items:center">
+    <div id="logo">CT</div>
+    <div class="title-block">
+      <div class="sub">CONSULTIME</div>
+      <div class="title">Prospecting Engine <span>v5</span></div>
+    </div>
+  </div>
+  <div id="header-right">
+    <span id="ca-badge"></span>
+    <button class="btn-secondary" id="export-top" onclick="exportCSV()" style="width:auto;display:none">↓ Export CSV</button>
+  </div>
+</div>
+
+<div id="layout">
+  <div id="sidebar">
+
+    <div class="key-wrap">
+      <div class="lbl">Clé API Anthropic</div>
+      <input class="key-input" id="key-input" type="password" placeholder="sk-ant-..." oninput="saveKey(this.value)">
+      <div class="key-note">console.anthropic.com → API Keys. Non partagée.</div>
+    </div>
+
+    <div class="divider" style="margin-top:4px"></div>
+
+    <div class="filter-section">
+      <span class="lbl">Secteur cible</span>
+      <select id="sector" class="field">
+        <option value="">Tous secteurs</option>
+        <option>IT & Numérique</option><option>Banque & Finance</option>
+        <option>Assurance</option><option>Énergie</option>
+        <option>Transport & Logistique</option><option>Industrie / R&D</option>
+        <option>Télécoms & Médias</option><option>Retail & Distribution</option>
+        <option>Santé</option><option>Secteur public</option>
+      </select>
+    </div>
+
+    <div class="filter-section">
+      <span class="lbl">Région</span>
+      <select id="region" class="field">
+        <option value="">France entière</option>
+        <option>Île-de-France</option><option>Auvergne-Rhône-Alpes</option>
+        <option>Occitanie</option><option>Nouvelle-Aquitaine</option>
+        <option>Grand Est</option><option>Hauts-de-France</option>
+        <option>Normandie</option><option>Bretagne</option>
+        <option>Pays de la Loire</option><option>PACA</option>
+      </select>
+    </div>
+
+    <div class="filter-section">
+      <span class="lbl">Taille</span>
+      <select id="size" class="field">
+        <option value="">Toutes tailles</option>
+        <option>PME (10–50 sal.)</option><option>PME (50–200 sal.)</option>
+        <option>ETI (200–500 sal.)</option><option>ETI (500–1000 sal.)</option>
+        <option>Grand compte (1000+)</option>
+      </select>
+    </div>
+
+    <div class="filter-section">
+      <span class="lbl">CA minimum (M€)</span>
+      <select id="ca_min" class="field">
+        <option value="">Pas de minimum</option>
+        <option value="5">5 M€+</option><option value="20">20 M€+</option>
+        <option value="50">50 M€+</option><option value="100">100 M€+</option>
+        <option value="500">500 M€+</option>
+      </select>
+    </div>
+
+    <div class="filter-section">
+      <span class="lbl">🎯 Signaux d'intention recherchés</span>
+      <div class="signal-chips" id="signal-chips">
+        <div class="chip" data-v="recrutement_IT_actif" onclick="toggleChip(this)">Recrutement IT actif</div>
+        <div class="chip" data-v="gel_recrutement" onclick="toggleChip(this)">Gel recrutement</div>
+        <div class="chip" data-v="changement_DSI_DA" onclick="toggleChip(this)">Changement DSI/DA</div>
+        <div class="chip" data-v="AO_IT_detecte" onclick="toggleChip(this)">AO IT détecté</div>
+        <div class="chip" data-v="transformation_cloud" onclick="toggleChip(this)">Transfo cloud</div>
+        <div class="chip" data-v="projet_ERP_CRM" onclick="toggleChip(this)">Projet ERP/CRM</div>
+        <div class="chip" data-v="levee_fonds" onclick="toggleChip(this)">Levée de fonds</div>
+        <div class="chip" data-v="fusion_acquisition" onclick="toggleChip(this)">Fusion/Acquisition</div>
+        <div class="chip" data-v="ouverture_DSI" onclick="toggleChip(this)">Création poste IT</div>
+        <div class="chip" data-v="retard_projet" onclick="toggleChip(this)">Retard projet</div>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <span class="lbl">Mots-clés libres</span>
+      <input id="kw" class="field" type="text" placeholder="Ex : RSSI, Salesforce, fintech, cyber...">
+    </div>
+
+    <div class="filter-section">
+      <span class="lbl">Nombre de prospects</span>
+      <select id="count" class="field">
+        <option value="4">4 — Très qualitatif</option>
+        <option value="6" selected>6 — Équilibré</option>
+        <option value="8">8 — Plus large</option>
+      </select>
+    </div>
+
+    <button id="search-btn" onclick="doSearch()">Trouver des prospects</button>
+    <button class="btn-secondary" id="export-side" onclick="exportCSV()">↓ Export CSV</button>
+
+  </div>
+
+  <div id="results">
+    <div id="loading">
+      <div id="spinner"></div>
+      <div id="step-text">Analyse du marché en cours...</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:24px">
+        <div class="skel"><div class="skel-line" style="width:55%;height:14px"></div><div class="skel-line" style="width:40%;height:10px"></div><div class="skel-line" style="width:70%;height:10px"></div></div>
+        <div class="skel"><div class="skel-line" style="width:60%;height:14px"></div><div class="skel-line" style="width:35%;height:10px"></div><div class="skel-line" style="width:65%;height:10px"></div></div>
+        <div class="skel"><div class="skel-line" style="width:50%;height:14px"></div><div class="skel-line" style="width:45%;height:10px"></div><div class="skel-line" style="width:75%;height:10px"></div></div>
+      </div>
+    </div>
+    <div id="error-box"></div>
+    <div id="resume-box"><span class="resume-tag">SYNTHÈSE</span><span id="resume-text"></span></div>
+    <div id="stats-bar"></div>
+    <div id="sort-bar">
+      <span class="sort-lbl">TRIER PAR</span>
+      <select class="sort-sel" id="sort-sel" onchange="sortAndRender()">
+        <option value="priority">Priorité</option>
+        <option value="meddic">Score MEDDIC</option>
+        <option value="signal">Force signal</option>
+        <option value="ca">CA potentiel</option>
+        <option value="reliability">Fiabilité données</option>
+      </select>
+    </div>
+    <div id="leads-list"></div>
+    <div id="empty-state">
+      <div class="empty-icon">⌖</div>
+      <div class="empty-title">Aucune recherche lancée</div>
+      <div class="empty-sub">Sélectionne tes critères — surtout les signaux d'intention</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Prompts expert ────────────────────────────────────────────────────────────
+
+const SEARCH_SYS = `Tu es directeur commercial senior chez Consultime (Groupe Freeland, ~500M€ CA). Expert B2B en intermédiation freelance. Tu connais parfaitement les cycles d'achat DSI/DA et les signaux d'intention réels.
+
+CONSULTIME = intermédiation pure. Freelances IT, ingénierie, fonctionnel. Commission 8-12% TJM. Sourcing 24-48h. 176k profils vérifiés. Titulaire CANUT (marchés publics sans AO). JAMAIS portage salarial.
+
+MISSION : génère des comptes RÉELS, avec des données aussi précises que possible. Si tu n'es pas certain d'une donnée, indique-le dans reliability_note plutôt que d'inventer.
+
+RÈGLE MEDDIC STRICTE — la plupart des comptes doivent être TIEDE ou FROID. Un compte CHAUD exige 3 preuves concrètes. Sois impitoyable :
+- metrics TRUE uniquement si : douleur quantifiable claire (coût recrutement, délai projet, nb postes ouverts)
+- economic_buyer TRUE uniquement si : budget prévisible OU processus achat identifiable pour ce type de prestation
+- identify_pain TRUE uniquement si : signal d'intention CONCRET détecté, pas juste "le secteur recrute"
+Si un critère est incertain → FALSE. Mieux vaut un FROID honnête qu'un CHAUD infondé.
+
+SIGNAL OBLIGATOIRE : chaque signal doit être PRÉCIS, DATÉ (mois/trimestre si possible), VÉRIFIABLE. Format : "[Source] — [fait précis] — [date/période]". Ex : "LinkedIn — 12 offres emploi IT publiées dont 3 architectes cloud et 1 RSSI, recrutement direct gelé selon 2 posts internes — Q1 2026". Un signal vague = travail bâclé.
+
+FIABILITÉ DES DONNÉES : score de 1 à 5 sur la précision des infos fournies. 5 = entreprise bien connue, données vérifiables. 3 = données estimées. 1 = données très incertaines.
+
+RETOURNE UNIQUEMENT JSON valide sans markdown, sans texte avant ou après :
+{"leads":[{
+  "nom": "Nom exact de l entreprise",
+  "secteur": "Secteur précis",
+  "ca_estime": "ex: 80-150M€ ou N/C si inconnu",
+  "effectif": "ex: 200-400 sal. ou N/C",
+  "siege": "Ville (dept)",
+  "dirigeant": "Prénom Nom — Titre si connu, sinon N/C",
+  "contact_cible": "Poste exact à contacter EN PREMIER",
+  "contact_nom": "Prénom Nom si connu sur LinkedIn, sinon N/C",
+  "champion_potentiel": "Poste de l allié opérationnel (différent du décideur budget)",
+  "signal": "Signal PRÉCIS, DATÉ, VÉRIFIABLE — format [Source] — [fait] — [date]",
+  "signal_force": 3,
+  "signal_type": "recrutement_IT_actif",
+  "source_signal": "LinkedIn / APEC / BODACC / Presse / Welcome to the Jungle / Communiqué",
+  "meddic": {
+    "metrics": false,
+    "metrics_why": "Raison PRÉCISE pourquoi vrai ou faux — fait concret obligatoire",
+    "economic_buyer": false,
+    "economic_buyer_why": "Raison précise",
+    "identify_pain": false,
+    "identify_pain_why": "Raison précise — le signal détecté",
+    "global": "FROID"
+  },
+  "tjm_marche": "ex: 680-820€/j Paris ou 600-720€/j Lyon",
+  "ca_mission_estime": "CA Consultime si 1 mission: ex 130k€/an. Si 2-3 missions: ex 260-390k€/an",
+  "angle_consultime": "Argument N°1 à mettre en avant pour CE compte spécifiquement",
+  "risque_concurrent": "Risque réel + comment le contrer",
+  "type_contrat": "Direct ou Accord-cadre ou CANUT",
+  "timing_optimal": "Quand contacter et pourquoi — événement déclencheur précis",
+  "profil_freelance": "Profil exact le plus probable à placer — compétences clés",
+  "questions_meddic": [
+    "Question MEDDIC spécifique à CE compte pour valider Metrics",
+    "Question pour identifier l Economic Buyer et son budget",
+    "Question pour qualifier l urgence et le timing réel"
+  ],
+  "accroche_linkedin": "5 lignes MAX. Ouvre sur LE signal détecté (fait précis). Propose valeur Consultime. CTA daté. Jamais FI/FE/FC. Jamais portage salarial. Jamais formule politesse.",
+  "accroche_email": {
+    "objet": "≤8 mots — percutant, personnalisé, pas générique",
+    "corps": "≤100 mots — différent du LinkedIn, même rigueur, référence sectorielle pertinente"
+  },
+  "reliability": 3,
+  "reliability_note": "Ce qui est certain vs ce qui est estimé"
+}],"resume":"2 phrases — pourquoi CES comptes, potentiel réel estimé.","total_ca_mission":"CA Consultime total si toutes missions activées"}
+
+RÈGLES ABSOLUES :
+- signal_force : 1=rumeur/général, 2=tendance, 3=signal détectable, 4=signal fort vérifiable, 5=besoin confirmé
+- CHAUD=3 MEDDIC vrais avec preuves, TIEDE=2, FROID≤1. La majorité DOIT être TIEDE ou FROID.
+- type_contrat CANUT uniquement pour collectivités/opérateurs publics
+- Références secteur uniquement dans les messages
+- Lyon/Bordeaux/Toulouse/Nantes : TJM -10 à -15% vs Paris`;
+
+const SEQ_SYS = `Tu es directeur commercial senior Consultime (Groupe Freeland). Génère une séquence prospection J0-J21 chirurgicalement personnalisée pour ce compte précis.
+
+Chaque message contient UN élément de personnalisation spécifique à CE compte (pas générique). Jamais FI/FE/FC. Jamais portage salarial. Jamais formule de politesse. Toujours sortir d'un appel avec une prochaine action datée.
+
+RETOURNE UNIQUEMENT JSON valide sans markdown :
+{"sequence":[
+  {"jour":0,"canal":"LinkedIn","action":"Demande connexion","message":"1 phrase — contexte spécifique à ce compte uniquement"},
+  {"jour":3,"canal":"LinkedIn","action":"1er message","message":"5 lignes MAX. Fait précis sur ce compte. Valeur Consultime. CTA simple."},
+  {"jour":7,"canal":"Email","action":"Cold email","objet":"≤8 mots","message":"≤100 mots. Angle différent du LinkedIn. Référence sectorielle si pertinent."},
+  {"jour":12,"canal":"LinkedIn","action":"Relance valeur","message":"3 lignes. Apporter quelque chose — profil disponible / benchmark TJM / insight secteur. Pas de relance sèche."},
+  {"jour":16,"canal":"Téléphone","action":"Script appel","message":"Script 30 secondes MOT POUR MOT. Accroche sur signal détecté → douleur → valeur Consultime → demande RDV daté."},
+  {"jour":21,"canal":"Email","action":"Fermeture","message":"Bienveillant. Une seule question ouverte. Fermeture propre sans agressivité."}
+],"objections":[
+  {"objection":"Objection la plus probable pour ce secteur et ce contact","reponse":"Script mot pour mot adapté à ce compte","question_retour":"Question pour requalifier"},
+  {"objection":"On travaille déjà avec Malt / une plateforme","reponse":"Malt et Consultime sont complémentaires — [développer avec angle spécifique]","question_retour":"Question retour"},
+  {"objection":"Pas de besoin en ce moment","reponse":"Script Consultime — anticiper le besoin avant qu il arrive","question_retour":"Question retour"},
+  {"objection":"Trop chers","reponse":"Par rapport à quoi exactement ? [ancrage TJM marché précis pour ce profil]","question_retour":"Ancrage prix"}
+],"post_rdv":{"j1_objet":"Objet email J+1","j1_corps":"Récap douleurs identifiées + recommandation profil + prochaine étape datée des deux côtés","j7_si_silence":"1 contenu valeur non intrusif (profil dispo / TJM benchmark / retour client même secteur) + CTA simple"},"disqualification":"Critères précis pour passer en veille MEDDIC et ne plus relancer"}`;
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+let leads = [];
+let seqs = {};
+let openCard = null;
+let activeTabs = {};
+let activeSignals = new Set();
+let progressInterval;
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+
+function saveKey(v) { localStorage.setItem('ct_key', v); }
+function getKey() {
+  const s = localStorage.getItem('ct_key');
+  if (s && !document.getElementById('key-input').value) document.getElementById('key-input').value = s;
+  return document.getElementById('key-input').value.trim() || s || '';
+}
+
+function toggleChip(el) {
+  const v = el.dataset.v;
+  if (activeSignals.has(v)) { activeSignals.delete(v); el.classList.remove('active'); }
+  else { activeSignals.add(v); el.classList.add('active'); }
+}
+
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/`/g,'&#96;').replace(/'/g,'&#39;'); }
+
+function b64e(s) { try { return btoa(unescape(encodeURIComponent(s||''))); } catch { return btoa(s||''); } }
+function b64d(s) { try { return decodeURIComponent(escape(atob(s))); } catch { return atob(s); } }
+
+function repairJSON(raw) {
+  const txt = raw.replace(/```json\n?|```\n?/g,'').trim();
+  try { return JSON.parse(txt); } catch {}
+  const s = txt.indexOf('{'); if (s===-1) throw new Error('Aucun JSON trouvé.');
+  let d=0, end=-1;
+  for (let i=s;i<txt.length;i++) { if(txt[i]==='{')d++; else if(txt[i]==='}'){d--;if(d===0){end=i;break;}} }
+  if (end>-1) { try{return JSON.parse(txt.slice(s,end+1));}catch{} }
+  const li=txt.indexOf('"leads"');
+  if (li>-1) {
+    const as=txt.indexOf('[',li);
+    if(as>-1) {
+      const valid=[]; let i=as+1,d2=0,o='';
+      while(i<txt.length){const c=txt[i];o+=c;if(c==='{')d2++;else if(c==='}'){d2--;if(d2===0){try{JSON.parse(o);valid.push(o);}catch{}o='';}}i++;}
+      if(valid.length>0) return JSON.parse(`{"leads":[${valid.join(',')}],"resume":"Résultats partiels — réponse tronquée.","total_ca_mission":""}`);
+    }
+  }
+  throw new Error('Réponse tronquée. Réduis le nombre de prospects ou réessaie.');
+}
+
+async function callAPI(system, content, maxTokens=9000) {
+  const key = getKey();
+  if (!key) throw new Error('Clé API manquante — colle ta clé Anthropic en haut de la sidebar.');
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: 'user', content }]
+    })
+  });
+  const d = await r.json();
+  if (d.error) throw new Error(d.error.message || JSON.stringify(d.error));
+  const blocks = (d.content||[]).filter(b=>b.type==='text');
+  return repairJSON(blocks[blocks.length-1]?.text || '');
+}
+
+// ── Progress ──────────────────────────────────────────────────────────────────
+
+function startProgress() {
+  let p=0;
+  document.getElementById('progress-bar').style.width='0%';
+  progressInterval = setInterval(()=>{ p=Math.min(p+5,88); document.getElementById('progress-bar').style.width=p+'%'; },400);
+}
+function endProgress() {
+  clearInterval(progressInterval);
+  document.getElementById('progress-bar').style.width='100%';
+  setTimeout(()=>{ document.getElementById('progress-bar').style.width='0%'; },600);
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+
+async function doSearch() {
+  const key = getKey();
+  if (!key) { showError('Entre ta clé API Anthropic en haut à gauche.'); return; }
+
+  const sector = document.getElementById('sector').value;
+  const region = document.getElementById('region').value;
+  const size = document.getElementById('size').value;
+  const caMin = document.getElementById('ca_min').value;
+  const kw = document.getElementById('kw').value.trim();
+  const signals = [...activeSignals];
+  const count = document.getElementById('count').value;
+
+  if (!sector && !region && !size && !kw && signals.length === 0) {
+    showError('Sélectionne au moins un critère — idéalement un signal d\'intention.');
+    return;
+  }
+
+  const q = [
+    sector && `Secteur cible : ${sector}`,
+    region && `Région : ${region}`,
+    size && `Taille : ${size}`,
+    caMin && `CA minimum : ${caMin}M€`,
+    signals.length && `Signaux d'intention à détecter en priorité : ${signals.map(s=>s.replace(/_/g,' ')).join(', ')}`,
+    kw && `Mots-clés supplémentaires : ${kw}`,
+    `Nombre de comptes souhaités : ${count}`,
+    `Aujourd'hui : ${new Date().toLocaleDateString('fr-FR',{month:'long',year:'numeric'})}`
+  ].filter(Boolean).join('\n');
+
+  const btn = document.getElementById('search-btn');
+  btn.disabled = true; btn.textContent = 'Analyse en cours...';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('error-box').style.display = 'none';
+  document.getElementById('resume-box').style.display = 'none';
+  document.getElementById('stats-bar').style.display = 'none';
+  document.getElementById('sort-bar').style.display = 'none';
+  document.getElementById('leads-list').innerHTML = '';
+  document.getElementById('ca-badge').style.display = 'none';
+  document.getElementById('export-top').style.display = 'none';
+  document.getElementById('export-side').style.display = 'none';
+  leads = []; seqs = {}; openCard = null; activeTabs = {};
+  startProgress();
+
+  try {
+    document.getElementById('step-text').textContent = 'Identification des comptes et analyse des signaux...';
+    const r = await callAPI(SEARCH_SYS, q, 9000);
+    leads = r.leads || [];
+    sortAndRender(r);
+    if (r.total_ca_mission) {
+      const b = document.getElementById('ca-badge');
+      b.textContent = 'CA mission estimé : ' + r.total_ca_mission;
+      b.style.display = 'block';
+    }
+  } catch(e) { showError(e.message); }
+
+  endProgress();
+  document.getElementById('loading').style.display = 'none';
+  btn.disabled = false; btn.textContent = 'Trouver des prospects';
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  el.textContent = '✕ ' + msg; el.style.display = 'block';
+  document.getElementById('empty-state').style.display = 'none';
+}
+
+// ── Sort & render ─────────────────────────────────────────────────────────────
+
+function sortAndRender(rawResult) {
+  const by = document.getElementById('sort-sel').value;
+  const order = { CHAUD: 3, TIEDE: 2, FROID: 1 };
+  const sorted = [...leads].sort((a,b)=>{
+    if (by==='meddic') return (order[b.meddic?.global]||0)-(order[a.meddic?.global]||0);
+    if (by==='signal') return (b.signal_force||0)-(a.signal_force||0);
+    if (by==='reliability') return (b.reliability||0)-(a.reliability||0);
+    if (by==='ca') {
+      const p = s => parseInt((s||'0').replace(/[^0-9]/g,''))||0;
+      return p(b.ca_mission_estime)-p(a.ca_mission_estime);
+    }
+    return (a.priorite||9)-(b.priorite||9);
+  });
+  leads = sorted;
+
+  if (rawResult?.resume) {
+    document.getElementById('resume-text').textContent = rawResult.resume;
+    document.getElementById('resume-box').style.display = 'block';
+  }
+
+  const chaud = leads.filter(l=>l.meddic?.global==='CHAUD').length;
+  const tiede = leads.filter(l=>l.meddic?.global==='TIEDE').length;
+  const froid = leads.filter(l=>l.meddic?.global==='FROID').length;
+  const sb = document.getElementById('stats-bar');
+  sb.innerHTML = `<span style="color:var(--tm);font-weight:600">${leads.length} comptes</span><span>·</span><span style="color:var(--g)">${chaud} CHAUD</span><span style="color:var(--o)">${tiede} TIÈDE</span><span style="color:var(--r)">${froid} FROID</span>`;
+  sb.style.display = 'flex';
+  document.getElementById('sort-bar').style.display = 'flex';
+  document.getElementById('export-top').style.display = 'block';
+  document.getElementById('export-side').style.display = 'block';
+
+  const list = document.getElementById('leads-list');
+  list.innerHTML = '';
+  leads.forEach((lead,i) => list.appendChild(buildCard(lead,i)));
+}
+
+// ── Colors ────────────────────────────────────────────────────────────────────
+
+function scoreCol(g){return g==='CHAUD'?'#1A7040':g==='TIEDE'?'#B85800':'#B01C1C';}
+function scoreBg(g){return g==='CHAUD'?'#E6F4ED':g==='TIEDE'?'#FEF0E0':'#FDEAEA';}
+function platCol(p){return p==='FI'?'#0047B0':p==='FE'?'#006E96':'#5A3DB5';}
+function prioCol(p){return p===1?'#1A7040':p===2?'#B85800':'#B5A890';}
+function prioLbl(p){return p===1?'● Semaine':p===2?'◐ Ce mois':'○ Veille';}
+function relBadge(r){
+  if(r>=4) return '<span class="rel-badge rel-high">Fiable</span>';
+  if(r>=3) return '<span class="rel-badge rel-med">Estimé</span>';
+  return '<span class="rel-badge rel-low">Incertain</span>';
+}
+
+// ── Card builder ──────────────────────────────────────────────────────────────
+
+function buildCard(lead,i) {
+  const m = lead.meddic||{};
+  const col = scoreCol(m.global);
+  const sig = lead.signal_force||0;
+
+  const bars = [1,2,3,4,5].map(n=>`<div class="sbar-seg" style="background:${n<=sig?(sig>=4?'#1A7040':sig>=3?'#B85800':'#B01C1C'):'var(--border)'}"></div>`).join('');
+
+  const div = document.createElement('div');
+  div.className='card'; div.id=`card-${i}`;
+  div.style.animationDelay=`${i*0.05}s`;
+  div.style.borderLeft=`4px solid ${col}`;
+
+  div.innerHTML=`
+    <div class="card-top">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px">
+          <span class="card-name">${esc(lead.nom)}</span>
+          <span class="plat-badge" style="background:${platCol(lead.plateforme)}">${lead.plateforme||'FI'}</span>
+          <span class="prio-badge" style="color:${prioCol(lead.priorite)}">${prioLbl(lead.priorite)}</span>
+          ${lead.type_contrat==='CANUT'?'<span class="canut-badge">CANUT</span>':''}
+          ${relBadge(lead.reliability)}
+        </div>
+        <div class="card-meta">${[lead.secteur,lead.ca_estime,lead.effectif,lead.siege].filter(v=>v&&v!=='N/C').map((v,j,a)=>esc(v)+(j<a.length-1?'<span style="color:var(--border);margin:0 3px">·</span>':'')).join('')}</div>
+        <div class="card-contact">→ ${esc(lead.contact_cible)}</div>
+        ${lead.contact_nom&&lead.contact_nom!=='N/C'?`<div class="card-contact-name">Contact : ${esc(lead.contact_nom)}</div>`:''}
+      </div>
+      <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div class="meddic-dots">
+          <div class="mdot ${m.metrics?'on':''}" style="${m.metrics?`background:${col};border-color:${col}`:''}" title="Metrics — ${esc(m.metrics_why||'N/A')}">M</div>
+          <div class="mdot ${m.economic_buyer?'on':''}" style="${m.economic_buyer?`background:${col};border-color:${col}`:''}" title="Economic Buyer — ${esc(m.economic_buyer_why||'N/A')}">E</div>
+          <div class="mdot ${m.identify_pain?'on':''}" style="${m.identify_pain?`background:${col};border-color:${col}`:''}" title="Identify Pain — ${esc(m.identify_pain_why||'N/A')}">I</div>
+        </div>
+        <span class="score-chip" style="background:${scoreBg(m.global)};color:${col};border:1px solid ${col}44">${m.global||'—'}</span>
+      </div>
+    </div>
+
+    <div class="signal-strip">
+      <span class="signal-lbl">SIGNAL</span>
+      <span class="signal-text">${esc(lead.signal)}</span>
+      <div class="signal-right">
+        <div class="signal-bar">${bars}</div>
+        <span class="signal-source">${esc(lead.source_signal||'')}</span>
+      </div>
+    </div>
+
+    <div class="metrics-strip">
+      ${lead.tjm_marche&&lead.tjm_marche!=='N/C'?`<div class="metric-item"><div class="metric-lbl">TJM marché</div><div class="metric-val">${esc(lead.tjm_marche)}</div></div>`:''}
+      ${lead.ca_mission_estime&&lead.ca_mission_estime!=='N/C'?`<div class="metric-item"><div class="metric-lbl">CA mission</div><div class="metric-val g">${esc(lead.ca_mission_estime)}</div></div>`:''}
+      ${lead.profil_freelance?`<div class="metric-item" style="flex:1"><div class="metric-lbl">Profil cible</div><div class="metric-val plain">${esc(lead.profil_freelance)}</div></div>`:''}
+      ${lead.timing_optimal?`<div class="metric-item" style="flex-shrink:0"><div class="metric-lbl">Timing</div><div class="metric-val plain">${esc(lead.timing_optimal)}</div></div>`:''}
+    </div>
+
+    <button class="toggle-btn" onclick="toggleCard(${i})">
+      <span id="icon-${i}">▸</span> Analyse &amp; Outreach
+      <span class="toggle-right">Radar · LinkedIn · Email · Séquence</span>
+    </button>
+    <div id="expand-${i}" style="display:none"></div>
+  `;
+  return div;
+}
+
+// ── Card expand ───────────────────────────────────────────────────────────────
+
+function toggleCard(i) {
+  const ex = document.getElementById(`expand-${i}`);
+  const ico = document.getElementById(`icon-${i}`);
+  if (openCard===i) { ex.style.display='none'; ico.textContent='▸'; openCard=null; return; }
+  if (openCard!==null) {
+    document.getElementById(`expand-${openCard}`).style.display='none';
+    document.getElementById(`icon-${openCard}`).textContent='▸';
+  }
+  openCard=i; ico.textContent='▾';
+  ex.style.display='block'; ex.className='expand-area';
+  renderExpand(i);
+}
+
+function renderExpand(i) {
+  const tab = activeTabs[i]||'radar';
+  const ex = document.getElementById(`expand-${i}`);
+  ex.innerHTML=`
+    <div class="tab-bar">
+      ${[['radar','🎯 Radar'],['linkedin','LinkedIn'],['email','Email'],['sequence','Séquence J0–J21']].map(([t,l])=>`<button class="tab-btn ${tab===t?'on':''}" onclick="setTab(${i},'${t}')">${l}</button>`).join('')}
+    </div>
+    <div class="tab-content" id="tc-${i}"></div>
+  `;
+  renderTab(i);
+}
+
+function setTab(i,t) { activeTabs[i]=t; renderExpand(i); }
+
+function renderTab(i) {
+  const lead = leads[i];
+  const tab = activeTabs[i]||'radar';
+  const el = document.getElementById(`tc-${i}`);
+  const m = lead.meddic||{};
+  const col = scoreCol(m.global);
+
+  if (tab==='radar') {
+    el.innerHTML=`
+      <div class="lbl" style="margin-bottom:8px">Analyse MEDDIC — passe ta souris sur les points pour les justifications</div>
+      ${[['M — Metrics',m.metrics,m.metrics_why],['E — Economic Buyer',m.economic_buyer,m.economic_buyer_why],['I — Identify Pain',m.identify_pain,m.identify_pain_why]].map(([lbl,active,why])=>`
+        <div class="meddic-row ${active?'pass':'fail'}">
+          <span class="mcheck ${active?'pass':'fail'}">${active?'✓':'✗'}</span>
+          <div><div class="mname ${active?'pass':'fail'}">${lbl}</div><div class="mwhy">${esc(why||'—')}</div></div>
+        </div>
+      `).join('')}
+      ${lead.angle_consultime?`<div class="angle-box"><div class="lbl" style="color:var(--a);margin-bottom:4px">Angle Consultime N°1 pour ce compte</div><div style="font-size:13px;color:var(--tm);line-height:1.5;font-weight:500">${esc(lead.angle_consultime)}</div></div>`:''}
+      <div class="grid2">
+        ${lead.risque_concurrent?`<div class="info-box"><div class="lbl">Risque concurrent</div><div class="info-val">${esc(lead.risque_concurrent)}</div></div>`:''}
+        ${lead.type_contrat?`<div class="info-box"><div class="lbl">Type de contrat</div><div class="info-val mono">${esc(lead.type_contrat)}</div></div>`:''}
+        ${lead.champion_potentiel?`<div class="info-box"><div class="lbl">Champion potentiel</div><div class="info-val">${esc(lead.champion_potentiel)}</div></div>`:''}
+        ${lead.dirigeant&&lead.dirigeant!=='N/C'?`<div class="info-box"><div class="lbl">Dirigeant</div><div class="info-val">${esc(lead.dirigeant)}</div></div>`:''}
+      </div>
+      ${lead.reliability_note?`<div style="background:var(--bg);border:1px solid var(--border);padding:10px 14px;margin-top:4px"><div class="lbl">Note fiabilité des données</div><div style="font-size:11px;color:var(--tmt);line-height:1.5">${esc(lead.reliability_note)}</div></div>`:''}
+      ${lead.questions_meddic?.length?`<div class="lbl" style="margin-top:14px;margin-bottom:6px">Questions de qualification MEDDIC</div><div class="q-list">${lead.questions_meddic.map((q,j)=>`<div class="q-item"><span class="q-num">Q${j+1}</span><span class="q-text">${esc(q)}</span></div>`).join('')}</div>`:''}
+    `;
+
+  } else if (tab==='linkedin') {
+    const id=`li-${i}`;
+    const liBox = document.createElement('div'); liBox.className='msg-box'; liBox.textContent=lead.accroche_linkedin||'';
+    const liBtn = document.createElement('button'); liBtn.className='copy-btn'; liBtn.textContent='Copier'; liBtn.dataset.copy=lead.accroche_linkedin||''; liBtn.onclick=function(){copyDirect(this.dataset.copy,this);};
+    el.innerHTML=''; el.appendChild(liBox); el.appendChild(liBtn);
+
+  } else if (tab==='email' && lead.accroche_email) {
+    const full=`Objet : ${lead.accroche_email.objet}\n\n${lead.accroche_email.corps}`;
+    const id=`em-${i}`;
+    el.innerHTML=`
+      <div class="lbl">Objet</div><div class="email-objet">${esc(lead.accroche_email.objet||'')}</div>
+      <div class="lbl">Corps</div><div class="msg-box">${esc(lead.accroche_email.corps||'')}</div>
+    `;
+    const emBtn = el.querySelector('.copy-btn'); if(emBtn){emBtn.dataset.copy=full; emBtn.onclick=function(){copyDirect(this.dataset.copy,this);};}
+
+  } else if (tab==='sequence') {
+    const seq = seqs[i];
+    if (!seq) {
+      el.innerHTML=`<button class="gen-btn" onclick="genSeq(${i})">Générer la séquence J0–J21</button>`;
+    } else if (seq._loading) {
+      el.innerHTML=`<div class="gen-loading"><div class="gen-spinner"></div> Génération de la séquence personnalisée...</div>`;
+    } else if (seq._error) {
+      el.innerHTML=`<div style="color:var(--r);font-family:var(--mono);font-size:11px">✕ ${esc(seq._error)}</div>`;
+    } else {
+      el.innerHTML=`
+        ${(seq.sequence||[]).map(s=>{
+          const text=s.objet?`Objet : ${s.objet}\n\n${s.message}`:s.message;
+          const id=`sq-${i}-${s.jour}`;
+          return `<div class="seq-step">
+            <div class="seq-header">
+              <span class="seq-j">J${s.jour}</span>
+              <span class="seq-canal">${esc(s.canal)}</span>
+              <span class="seq-action">→ ${esc(s.action)}</span>
+              <div style="margin-left:auto"><button class="copy-btn" data-seq="${id}" data-jour="${s.jour}">Copier</button></div>
+            </div>
+            ${s.objet?`<div class="seq-objet">Objet : ${esc(s.objet)}</div>`:''}
+            <div class="seq-msg">${esc(s.message||'')}</div>
+          </div>`;
+        }).join('')}
+        ${(seq.objections||[]).length?`
+          <div class="lbl" style="margin-top:16px;margin-bottom:8px">Scripts objections</div>
+          ${seq.objections.map(obj=>`
+            <div class="obj-item">
+              <div class="obj-q">"${esc(obj.objection)}"</div>
+              <div class="obj-r">${esc(obj.reponse)}</div>
+              <div class="obj-ret">→ ${esc(obj.question_retour)}</div>
+            </div>
+          `).join('')}
+        `:''}
+        ${seq.post_rdv?`
+          <div class="lbl" style="margin-top:16px;margin-bottom:8px">Post-RDV</div>
+          <div class="grid2">
+            ${seq.post_rdv.j1_corps?`<div class="info-box"><div class="lbl">J+1</div>${seq.post_rdv.j1_objet?`<div style="font-size:11px;font-weight:600;color:var(--t);margin-bottom:4px">Objet : ${esc(seq.post_rdv.j1_objet)}</div>`:''}<div class="info-val">${esc(seq.post_rdv.j1_corps)}</div></div>`:''}
+            ${seq.disqualification?`<div class="info-box" style="background:var(--rb);border-color:#B01C1C33"><div class="lbl" style="color:var(--r)">Critères disqualification</div><div class="info-val">${esc(seq.disqualification)}</div></div>`:''}
+          </div>
+        `:''}
+      `;
+      // Bind seq copy buttons safely
+      el.querySelectorAll('.copy-btn[data-seq]').forEach(btn => {
+        const j = parseInt(btn.dataset.jour);
+        const s2 = (seq.sequence||[]).find(x=>x.jour===j)||{};
+        const txt = s2.objet ? `Objet : ${s2.objet}
+
+${s2.message}` : (s2.message||'');
+        btn.dataset.copy = txt;
+        btn.onclick = function(){ copyDirect(this.dataset.copy, this); };
+      });
+    }
+  }
+}
+
+// ── Generate sequence ─────────────────────────────────────────────────────────
+
+async function genSeq(i) {
+  const lead = leads[i];
+  seqs[i] = { _loading: true };
+  renderTab(i);
+  try {
+    const ctx = `Prospect : ${lead.nom}
+Secteur : ${lead.secteur} | Siège : ${lead.siege}
+CA estimé : ${lead.ca_estime} | Effectif : ${lead.effectif}
+Contact cible : ${lead.contact_cible}${lead.contact_nom&&lead.contact_nom!=='N/C'?' ('+lead.contact_nom+')':''}
+Champion potentiel : ${lead.champion_potentiel||'N/A'}
+Signal détecté : ${lead.signal} (force : ${lead.signal_force}/5)
+MEDDIC : ${lead.meddic?.global} — M:${lead.meddic?.metrics} E:${lead.meddic?.economic_buyer} I:${lead.meddic?.identify_pain}
+Plateforme : ${lead.plateforme} | TJM marché : ${lead.tjm_marche}
+Angle Consultime : ${lead.angle_consultime}
+Type contrat : ${lead.type_contrat}
+Timing optimal : ${lead.timing_optimal}
+Profil freelance cible : ${lead.profil_freelance}
+Risque concurrent : ${lead.risque_concurrent}`;
+    const r = await callAPI(SEQ_SYS, ctx, 6000);
+    seqs[i] = r;
+  } catch(e) {
+    seqs[i] = { _error: e.message };
+  }
+  renderTab(i);
+}
+
+// ── Export CSV ────────────────────────────────────────────────────────────────
+
+function exportCSV() {
+  if (!leads.length) return;
+  const h = ["Nom","Secteur","CA","Effectif","Siège","Dirigeant","Contact cible","Contact nom","Signal","Force signal","Type signal","Source","MEDDIC","Metrics why","EB why","Pain why","TJM","CA mission","Angle","Risque","Contrat","Timing","Profil","Plateforme","Priorité","Fiabilité","Accroche LI","Email Objet","Email Corps"];
+  const rows = leads.map(l => [
+    l.nom, l.secteur, l.ca_estime, l.effectif, l.siege, l.dirigeant||'',
+    l.contact_cible, l.contact_nom||'', l.signal, l.signal_force||'', l.signal_type||'', l.source_signal||'',
+    l.meddic?.global, l.meddic?.metrics_why||'', l.meddic?.economic_buyer_why||'', l.meddic?.identify_pain_why||'',
+    l.tjm_marche||'', l.ca_mission_estime||'', l.angle_consultime||'', l.risque_concurrent||'',
+    l.type_contrat||'', l.timing_optimal||'', l.profil_freelance||'',
+    l.plateforme, l.priorite||'', l.reliability||'',
+    `"${(l.accroche_linkedin||'').replace(/"/g,'""').replace(/\n/g,' ')}"`,
+    l.accroche_email?.objet||'',
+    `"${(l.accroche_email?.corps||'').replace(/"/g,'""').replace(/\n/g,' ')}"`
+  ]);
+  const csv = [h,...rows].map(r=>r.join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));
+  a.download = `prospects_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// ── Copy ──────────────────────────────────────────────────────────────────────
+
+function copyDirect(text, btn) {
+  try { navigator.clipboard.writeText(text); } catch(e) { console.error(e); }
+  if (btn) { const orig=btn.textContent; btn.textContent='✓ Copié'; btn.classList.add('ok'); setTimeout(()=>{btn.textContent=orig;btn.classList.remove('ok');},2000); }
+}
+function copyText(b64, btnId) {
+  try { navigator.clipboard.writeText(b64d(b64)); } catch(e) { console.error(e); }
+  const btn = document.getElementById(btnId);
+  if (btn) { btn.textContent='✓ Copié'; btn.classList.add('ok'); setTimeout(()=>{btn.textContent='Copier';btn.classList.remove('ok');},2000); }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+window.addEventListener('load', () => {
+  const k = localStorage.getItem('ct_key');
+  if (k) document.getElementById('key-input').value = k;
+  document.getElementById('kw').addEventListener('keydown', e=>{
+    if (e.key==='Enter' && (e.metaKey||e.ctrlKey)) doSearch();
+  });
+});
+</script>
+</body>
+</html>
